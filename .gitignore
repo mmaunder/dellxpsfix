@@ -1,0 +1,9 @@
+/build/
+/reports/
+__pycache__/
+*.py[cod]
+*.json
+*.jsonl
+*.log
+.env*
+.venv/

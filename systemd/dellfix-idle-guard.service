@@ -1,0 +1,32 @@
+[Unit]
+Description=Experimental Dell XPS CPU idle workaround (20 us PM QoS)
+Documentation=file:/usr/local/share/doc/dellfix-idle-guard/README.md
+After=systemd-udev-trigger.service
+ConditionPathExists=/dev/cpu_dma_latency
+
+[Service]
+Type=exec
+ExecStart=/usr/local/libexec/dellfix-idle-guard 20
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=5
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+DevicePolicy=closed
+DeviceAllow=/dev/cpu_dma_latency rw
+MemoryMax=16M
+TasksMax=2
+
+[Install]
+WantedBy=multi-user.target
