@@ -65,8 +65,58 @@ can remain enabled. It makes no embedded-controller register writes.
   a C compiler, make, and Python 3.10 or newer. Initial testing used Ubuntu.
 - Preventing deep idle can increase power consumption, reduce battery life,
   and increase heat. No reliable battery-life measurement is available yet.
-- The request applies while the service runs. It does not establish protection
-  during system suspend, early boot before the service starts, or unrelated faults.
+- The request applies while the service runs and the system is awake. Linux does
+  not apply it during suspend-to-idle, so deep idle is still used while the
+  laptop is suspended. It also does not cover early boot before the service
+  starts, or unrelated faults.
+
+## Alternative without installing anything
+
+The same idle states can be disabled with options built into the `intel_idle`
+driver, as [suggested in the Linux reports thread][alt-suggestion]. On the
+initial test machine the state indexes are 0 POLL, 1 C1, 2 C1E, 3 C6S and 4 C10.
+Confirm yours first:
+
+```sh
+grep . /sys/devices/system/cpu/cpu0/cpuidle/state*/name
+```
+
+Either of these kernel command-line parameters applies from the start of boot:
+
+```text
+intel_idle.max_cstate=2
+intel_idle.states_off=0x18
+```
+
+The first keeps only the first two non-polling states (C1 and C1E here). The
+second disables the states at indexes 3 and 4. The same two states can also be
+disabled at runtime, until the next reboot:
+
+```sh
+echo 1 | sudo tee /sys/devices/system/cpu/cpu*/cpuidle/state3/disable >/dev/null
+echo 1 | sudo tee /sys/devices/system/cpu/cpu*/cpuidle/state4/disable >/dev/null
+```
+
+While the laptop is awake, these have the same effect as this service. The
+differences:
+
+- They need no extra software, and the boot parameters cover early boot before
+  a service could start.
+- **They also apply during suspend.** Linux skips disabled states in
+  suspend-to-idle, so the platform cannot reach its lowest-power sleep state and
+  the battery is expected to drain faster while suspended. The latency request
+  used by this service is not applied during suspend-to-idle. On the initial
+  test machine, with the service running, the platform's low-power residency
+  counter accounted for nearly all of about 5.9 hours across four suspends, and
+  no reset occurred.
+- The parameters and sysfs paths depend on the state table, which a kernel
+  update can change. Check the state names again after updates.
+- Removing a boot parameter requires a reboot. The service can be stopped
+  immediately.
+
+This project has not booted with these parameters or measured their effect on
+suspend power. Use either this service or one of these options, not both. See
+the [`intel_idle` documentation][intel-idle] for details.
 
 ## Build and install
 
@@ -208,5 +258,7 @@ Source code is provided under the [MIT license](LICENSE).
 
 [cpuidle]: https://www.kernel.org/doc/html/latest/admin-guide/pm/cpuidle.html
 [qos]: https://www.kernel.org/doc/html/latest/power/pm_qos_interface.html
+[intel-idle]: https://www.kernel.org/doc/html/latest/admin-guide/pm/intel_idle.html
+[alt-suggestion]: https://github.com/omacom/omarchy/issues/5953#issuecomment-6789783054
 [dell-lights]: https://www.dell.com/support/manuals/en-us/xps-da14260-laptop/xps-14-da14260-service-manual/system-diagnostic-lights?guid=guid-924845d7-957f-49d6-8494-0d7d6b10e34d&lang=en-us
 [discussion]: https://www.dell.com/community/en/conversations/xps/xps-1416-2026-abrupt-crashshutdown-while-on-battery-da14260-da16260/6a41380230ba7b5c1c724a29
